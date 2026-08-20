@@ -17,8 +17,10 @@ the infrastructure pieces that show up in real production systems.
 | Document DB    | MongoDB 8                           |
 | Cache          | Redis 7                             |
 | Message broker | RabbitMQ 3 (management UI included) |
+| Event streaming | Kafka (KRaft, single-node) + Kafka UI |
 | Reverse proxy  | nginx                               |
-| Metrics/dashboards | Grafana                         |
+| Metrics        | Prometheus                          |
+| Dashboards     | Grafana (Prometheus, Loki and Tempo datasources auto-provisioned) |
 | Logs           | Grafana Loki + Alloy (log shipping) |
 | Traces         | Grafana Tempo (OTLP)                |
 
@@ -33,18 +35,18 @@ the infrastructure pieces that show up in real production systems.
                    ┌────────────────┐
                    │   your app     │  ← not included — this repo is just the infra
                    └───────┬────────┘
-              ┌────────────┼─────────────┬───────────────┐
-              ▼            ▼              ▼               ▼
-         ┌─────────┐  ┌────────┐   ┌──────────┐   ┌──────────────┐
-         │Postgres │  │ Redis  │   │  Mongo   │   │  RabbitMQ    │
-         │ :5432   │  │ :6379  │   │ :27017   │   │ :5672/:15672 │
-         └─────────┘  └────────┘   └──────────┘   └──────────────┘
+              ┌────────────┼─────────────┬───────────────┬──────────────┐
+              ▼            ▼              ▼               ▼              ▼
+         ┌─────────┐  ┌────────┐   ┌──────────┐   ┌──────────────┐ ┌──────────┐
+         │Postgres │  │ Redis  │   │  Mongo   │   │  RabbitMQ    │ │  Kafka   │
+         │ :5432   │  │ :6379  │   │ :27017   │   │ :5672/:15672 │ │  :9092   │
+         └─────────┘  └────────┘   └──────────┘   └──────────────┘ └──────────┘
 
   Observability (independent of the app path above):
 
-  containers ──logs──▶ Alloy ──▶ Loki ──┐
-  app/services ──traces (OTLP)──▶ Tempo ─┼──▶ Grafana :3300
-                                          ┘
+  containers ──logs──▶ Alloy ──▶ Loki ────┐
+  app/services ──traces (OTLP)──▶ Tempo ──┼──▶ Grafana :3300 (datasources auto-provisioned)
+  app/services ──metrics (scrape)─▶ Prometheus ─┘
 ```
 
 ## Services & default ports
@@ -56,7 +58,10 @@ the infrastructure pieces that show up in real production systems.
 | MongoDB   | `localhost:27017`                    | `admin` / `admin`            |
 | RabbitMQ  | `localhost:5672` (AMQP)              | `admin` / `admin`            |
 | RabbitMQ management | http://localhost:15672      | `admin` / `admin`            |
+| Kafka     | `localhost:9092`                     | —                             |
+| Kafka UI  | http://localhost:8080                | —                             |
 | nginx (opt-in) | http://localhost:80             | —                             |
+| Prometheus | http://localhost:9090               | —                             |
 | Grafana   | http://localhost:3300                | `admin` / `admin`            |
 | Loki      | `localhost:3100`                     | —                             |
 | Tempo     | `localhost:3200` (HTTP), `4317`/`4318` (OTLP) | —                    |
@@ -108,18 +113,23 @@ into this environment:
 
 Point your app's OpenTelemetry exporter at Tempo (`tempo:4317` from inside the
 network) and its `docker` log driver already flows into Loki via Alloy — no
-extra config needed for logs.
+extra config needed for logs. To scrape your app's own `/metrics` endpoint,
+add a job to `compose/prometheus/prometheus.yml`. For events, your service can
+produce/consume against Kafka at `kafka:29092` from inside the network (Kafka UI
+at `localhost:8080` for browsing topics).
 
 ## Project structure
 
 ```
 .
 ├── compose/
-│   ├── docker-compose.yml   # all services
-│   ├── .env.example         # copy to .env, never commit the real one
-│   ├── nginx/nginx.conf     # reverse proxy config (opt-in, see above)
-│   ├── tempo/tempo.yaml     # Tempo config (OTLP receiver, local storage)
-│   └── alloy-config.alloy   # Alloy pipeline: docker logs → Loki
+│   ├── docker-compose.yml            # all services
+│   ├── .env.example                  # copy to .env, never commit the real one
+│   ├── nginx/nginx.conf              # reverse proxy config (opt-in, see above)
+│   ├── prometheus/prometheus.yml     # scrape targets
+│   ├── grafana/provisioning/         # auto-provisioned datasources (Prometheus, Loki, Tempo)
+│   ├── tempo/tempo.yaml              # Tempo config (OTLP receiver, local storage)
+│   └── alloy-config.alloy            # Alloy pipeline: docker logs → Loki
 ├── LICENSE
 └── README.md
 ```
@@ -131,9 +141,9 @@ extra config needed for logs.
 
 ## Roadmap
 
-- [ ] Provision Grafana datasources/dashboards automatically (Loki + Tempo)
+- [ ] Add pre-built Grafana dashboards (not just datasources)
 - [ ] Add a `Makefile` with shortcuts (`make up`, `make down`, `make logs`)
-- [ ] Add an example app service showing end-to-end wiring (DB + broker + traces)
+- [ ] Add an example app service showing end-to-end wiring (DB + broker + Kafka + traces)
 
 ## License
 
