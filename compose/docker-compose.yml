@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      POSTGRES_DB: ${POSTGRES_DB:-db_order_api}
+      POSTGRES_DB: ${POSTGRES_DB:-app_db}
     ports:
       - "5432:5432"
     volumes:
@@ -40,7 +40,7 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-admin}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-db_order_api}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-app_db}
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -63,8 +63,8 @@ services:
     restart: unless-stopped
 
   # Opt-in: only starts with `docker compose --profile app up -d`.
-  # It proxies to an "order-api" upstream that isn't part of this stack yet —
-  # add your own API service (see README > Known limitations) before enabling it,
+  # It's an example reverse-proxy config, not a fixed dependency — plug in
+  # your own API service first (see README > Adding your own service),
   # otherwise nginx fails to start (it can't resolve the upstream host).
   nginx:
     image: nginx:1.27
@@ -131,8 +131,6 @@ services:
       - "3200:3200"   # Tempo HTTP API
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
-    environment:
-      OTEL_SERVICE_NAME: order-api
     networks:
       - backend_lab
     restart: unless-stopped

@@ -1,12 +1,13 @@
 # Backend Engineering Lab
 
-A local, Docker-based development environment for practicing backend engineering:
-relational and non-relational databases, a message broker, a reverse proxy, and a
-full observability stack (metrics, logs and traces) wired together and ready to run
-with a single command.
+A reusable, Docker-based local development infrastructure: relational and
+non-relational databases, a message broker, a reverse proxy, and a full
+observability stack (metrics, logs and traces) — wired together and ready to
+run with a single command, so you don't have to rebuild this setup for every
+new backend project.
 
-Built as part of my preparation for backend engineering roles, with a focus on the
-infrastructure pieces that show up in real production systems.
+Built as part of my preparation for backend engineering roles, with a focus on
+the infrastructure pieces that show up in real production systems.
 
 ## Stack
 
@@ -25,13 +26,12 @@ infrastructure pieces that show up in real production systems.
 
 ```
                      ┌────────────┐
-   client ────────▶  │   nginx    │  :80
+   client ────────▶  │   nginx    │  :80   (optional, see "Adding your own service")
                      └─────┬──────┘
                            │ proxy_pass
                            ▼
                    ┌────────────────┐
-                   │  order-api     │  ← not included yet, see "Known limitations"
-                   │  (your app)    │
+                   │   your app     │  ← not included — this repo is just the infra
                    └───────┬────────┘
               ┌────────────┼─────────────┬───────────────┐
               ▼            ▼              ▼               ▼
@@ -56,7 +56,7 @@ infrastructure pieces that show up in real production systems.
 | MongoDB   | `localhost:27017`                    | `admin` / `admin`            |
 | RabbitMQ  | `localhost:5672` (AMQP)              | `admin` / `admin`            |
 | RabbitMQ management | http://localhost:15672      | `admin` / `admin`            |
-| nginx     | http://localhost:80                  | —                             |
+| nginx (opt-in) | http://localhost:80             | —                             |
 | Grafana   | http://localhost:3300                | `admin` / `admin`            |
 | Loki      | `localhost:3100`                     | —                             |
 | Tempo     | `localhost:3200` (HTTP), `4317`/`4318` (OTLP) | —                    |
@@ -77,7 +77,7 @@ cd backend-engineering-lab/compose
 
 cp .env.example .env      # adjust credentials if you want
 
-docker compose up -d      # start everything in the background
+docker compose up -d      # start the infra (databases, broker, observability)
 docker compose ps         # check status / health
 ```
 
@@ -93,6 +93,23 @@ Stop and wipe all data (fresh start):
 docker compose down -v
 ```
 
+## Adding your own service
+
+`nginx` is not started by default — it's an example reverse-proxy config, not
+a fixed dependency of the infra. It's meant to front whichever app you plug
+into this environment:
+
+1. Add your service to `docker-compose.yml`, attached to the `backend_lab`
+   network (so it can reach Postgres, Redis, Mongo and RabbitMQ by container
+   name — e.g. `postgres:5432`).
+2. Rename the `api` upstream in `compose/nginx/nginx.conf` to match your
+   service's container name (defaults to `api:3000`).
+3. Start it together with nginx: `docker compose --profile app up -d`.
+
+Point your app's OpenTelemetry exporter at Tempo (`tempo:4317` from inside the
+network) and its `docker` log driver already flows into Loki via Alloy — no
+extra config needed for logs.
+
 ## Project structure
 
 ```
@@ -100,7 +117,7 @@ docker compose down -v
 ├── compose/
 │   ├── docker-compose.yml   # all services
 │   ├── .env.example         # copy to .env, never commit the real one
-│   ├── nginx/nginx.conf     # reverse proxy config
+│   ├── nginx/nginx.conf     # reverse proxy config (opt-in, see above)
 │   ├── tempo/tempo.yaml     # Tempo config (OTLP receiver, local storage)
 │   └── alloy-config.alloy   # Alloy pipeline: docker logs → Loki
 ├── LICENSE
@@ -109,19 +126,14 @@ docker compose down -v
 
 ## Known limitations
 
-- `nginx` proxies to an `order-api` upstream on port 3000 that **is not part of
-  this stack**. It's a placeholder for whatever backend service you build on top
-  of this environment — add it to `docker-compose.yml`, attach it to the
-  `backend_lab` network, and name it `order-api` (or edit `compose/nginx/nginx.conf`
-  to match your service name).
 - All credentials default to `admin/admin` for convenience. This is meant for
   **local development only** — never reuse these values outside your machine.
 
 ## Roadmap
 
-- [ ] Add a sample API service (`order-api`) wired to Postgres, Redis, Mongo and RabbitMQ
 - [ ] Provision Grafana datasources/dashboards automatically (Loki + Tempo)
 - [ ] Add a `Makefile` with shortcuts (`make up`, `make down`, `make logs`)
+- [ ] Add an example app service showing end-to-end wiring (DB + broker + traces)
 
 ## License
 
