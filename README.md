@@ -18,6 +18,7 @@ the infrastructure pieces that show up in real production systems.
 | Cache          | Redis 7                             |
 | Message broker | RabbitMQ 3 (management UI included) |
 | Event streaming | Kafka (KRaft, single-node) + Kafka UI |
+| Search / analytics | Elasticsearch (single-node) + Kibana |
 | Reverse proxy  | nginx                               |
 | Metrics        | Prometheus                          |
 | Dashboards     | Grafana (Prometheus, Loki and Tempo datasources auto-provisioned) |
@@ -35,12 +36,13 @@ the infrastructure pieces that show up in real production systems.
                    ┌────────────────┐
                    │   your app     │  ← not included — this repo is just the infra
                    └───────┬────────┘
-              ┌────────────┼─────────────┬───────────────┬──────────────┐
-              ▼            ▼              ▼               ▼              ▼
-         ┌─────────┐  ┌────────┐   ┌──────────┐   ┌──────────────┐ ┌──────────┐
-         │Postgres │  │ Redis  │   │  Mongo   │   │  RabbitMQ    │ │  Kafka   │
-         │ :5432   │  │ :6379  │   │ :27017   │   │ :5672/:15672 │ │  :9092   │
-         └─────────┘  └────────┘   └──────────┘   └──────────────┘ └──────────┘
+              ┌────────────┼─────────────┬───────────────┬──────────────┬───────────────┐
+              ▼            ▼              ▼               ▼              ▼               ▼
+         ┌─────────┐  ┌────────┐   ┌──────────┐   ┌──────────────┐ ┌──────────┐  ┌──────────────┐
+         │Postgres │  │ Redis  │   │  Mongo   │   │  RabbitMQ    │ │  Kafka   │  │Elasticsearch │
+         │ :5432   │  │ :6379  │   │ :27017   │   │ :5672/:15672 │ │  :9092   │  │ :9200(+Kibana│
+         └─────────┘  └────────┘   └──────────┘   └──────────────┘ └──────────┘  │   :5601)     │
+                                                                                  └──────────────┘
 
   Observability (independent of the app path above):
 
@@ -60,6 +62,8 @@ the infrastructure pieces that show up in real production systems.
 | RabbitMQ management | http://localhost:15672      | `admin` / `admin`            |
 | Kafka     | `localhost:9092`                     | —                             |
 | Kafka UI  | http://localhost:8080                | —                             |
+| Elasticsearch | `localhost:9200`                 | —                             |
+| Kibana    | http://localhost:5601                | —                             |
 | nginx (opt-in) | http://localhost:80             | —                             |
 | Prometheus | http://localhost:9090               | —                             |
 | Grafana   | http://localhost:3300                | `admin` / `admin`            |
@@ -116,7 +120,9 @@ network) and its `docker` log driver already flows into Loki via Alloy — no
 extra config needed for logs. To scrape your app's own `/metrics` endpoint,
 add a job to `compose/prometheus/prometheus.yml`. For events, your service can
 produce/consume against Kafka at `kafka:29092` from inside the network (Kafka UI
-at `localhost:8080` for browsing topics).
+at `localhost:8080` for browsing topics). For search/analytics, index against
+Elasticsearch at `elasticsearch:9200` from inside the network (no auth — lab
+only) and browse it via Kibana at `localhost:5601`.
 
 ## Project structure
 
