@@ -32,6 +32,19 @@ services:
       - backend_lab
     restart: unless-stopped
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - redis
+    networks:
+      - backend_lab
+    restart: unless-stopped
+
   mongo:
     image: mongo:8
     container_name: mongo
@@ -143,6 +156,8 @@ services:
     networks:
       - backend_lab
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   loki:
     image: grafana/loki:3.7.6
@@ -222,6 +237,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  redisinsight_data:
   mongodb_data:
   rabbitmq_data:
   kafka_data:

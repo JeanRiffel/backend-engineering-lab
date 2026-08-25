@@ -15,7 +15,7 @@ the infrastructure pieces that show up in real production systems.
 |----------------|-------------------------------------|
 | Relational DB  | PostgreSQL 17                       |
 | Document DB    | MongoDB 8                           |
-| Cache          | Redis 7                             |
+| Cache          | Redis 7 (RedisInsight UI included)  |
 | Message broker | RabbitMQ 3 (management UI included) |
 | Event streaming | Kafka (KRaft, single-node) + Kafka UI |
 | Search / analytics | Elasticsearch (single-node) + Kibana |
@@ -41,8 +41,10 @@ the infrastructure pieces that show up in real production systems.
          ┌─────────┐  ┌────────┐   ┌──────────┐   ┌──────────────┐ ┌──────────┐  ┌──────────────┐
          │Postgres │  │ Redis  │   │  Mongo   │   │  RabbitMQ    │ │  Kafka   │  │Elasticsearch │
          │ :5432   │  │ :6379  │   │ :27017   │   │ :5672/:15672 │ │  :9092   │  │ :9200(+Kibana│
-         └─────────┘  └────────┘   └──────────┘   └──────────────┘ └──────────┘  │   :5601)     │
-                                                                                  └──────────────┘
+         └─────────┘  │(+Redis-│   └──────────┘   └──────────────┘ └──────────┘  │   :5601)     │
+                       │Insight │                                                └──────────────┘
+                       │ :5540) │
+                       └────────┘
 
   Observability (independent of the app path above):
 
@@ -57,6 +59,7 @@ the infrastructure pieces that show up in real production systems.
 |-----------|--------------------------------------|------------------------------|
 | Postgres  | `localhost:5432`                     | `admin` / `admin`            |
 | Redis     | `localhost:6379`                     | —                             |
+| RedisInsight | http://localhost:5540             | —                             |
 | MongoDB   | `localhost:27017`                    | `admin` / `admin`            |
 | RabbitMQ  | `localhost:5672` (AMQP)              | `admin` / `admin`            |
 | RabbitMQ management | http://localhost:15672      | `admin` / `admin`            |
@@ -122,7 +125,8 @@ add a job to `compose/prometheus/prometheus.yml`. For events, your service can
 produce/consume against Kafka at `kafka:29092` from inside the network (Kafka UI
 at `localhost:8080` for browsing topics). For search/analytics, index against
 Elasticsearch at `elasticsearch:9200` from inside the network (no auth — lab
-only) and browse it via Kibana at `localhost:5601`.
+only) and browse it via Kibana at `localhost:5601`. Redis can be inspected via
+RedisInsight at `localhost:5540` (connect to host `redis`, port `6379`).
 
 ## Project structure
 
